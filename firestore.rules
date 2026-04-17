@@ -1,0 +1,113 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Fields:
+    //   - name: string (required)
+    //   - email: string (optional, format: email)
+    //   - selectedProvider: string (required, ['gemini', 'openai', 'anthropic'])
+    //   - apiKeys: map (required)
+    //
+    // Collection: /users/{userId}/projects/{projectId}
+    // Fields:
+    //   - id: string (required)
+    //   - userId: string (required, matches owner)
+    //   - title: string (required, 1-100 chars)
+    //   - platformId: string (required)
+    //   - projectType: string (required)
+    //   - currentCode: string (required, max 1MB)
+    //   - createdAt: timestamp (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidString(val, min, max) {
+      return val is string && val.size() >= min && val.size() <= max;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'selectedProvider', 'apiKeys']) &&
+             isValidString(data.name, 1, 100) &&
+             data.selectedProvider in ['gemini', 'openai', 'anthropic'] &&
+             data.apiKeys is map;
+    }
+
+    function isValidProject(data, userId) {
+      return data.keys().hasAll(['id', 'userId', 'title', 'platformId', 'projectType', 'currentCode', 'createdAt', 'updatedAt']) &&
+             data.userId == userId &&
+             isValidString(data.title, 1, 200) &&
+             isValidString(data.currentCode, 0, 1000000) &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      allow delete: if isOwner(userId);
+
+      match /projects/{projectId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidProject(request.resource.data, userId);
+        allow update: if isOwner(userId) && isValidProject(request.resource.data, userId);
+        allow delete: if isOwner(userId);
+
+        match /versions/{versionId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId);
+          allow update: if isOwner(userId);
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      match /sessions/{sessionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+
+        match /messages/{messageId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId);
+          allow update: if isOwner(userId);
+          allow delete: if isOwner(userId);
+        }
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

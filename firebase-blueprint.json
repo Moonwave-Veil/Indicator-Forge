@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user preferences, subscription status, and API keys.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "favoritePlatform": { "type": "string" },
+        "selectedProvider": { "type": "string", "enum": ["gemini", "openai", "anthropic"] },
+        "subscription": {
+          "type": "object",
+          "properties": {
+            "plan": { "type": "string", "enum": ["starter", "pro", "power"] },
+            "status": { "type": "string", "enum": ["active", "canceled", "past_due"] },
+            "currentPeriodEnd": { "type": "number" }
+          }
+        },
+        "apiKeys": {
+          "type": "object",
+          "properties": {
+            "gemini": { "type": "string" },
+            "openai": { "type": "string" },
+            "anthropic": { "type": "string" }
+          }
+        }
+      },
+      "required": ["name", "selectedProvider", "apiKeys"]
+    },
+    "ScriptProject": {
+      "title": "Script Project",
+      "description": "A saved trading script project with version history.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "platformId": { "type": "string" },
+        "projectType": { "type": "string" },
+        "currentCode": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "title", "platformId", "projectType", "currentCode", "createdAt", "updatedAt"]
+    },
+    "ScriptVersion": {
+      "title": "Script Version",
+      "description": "A specific revision of a script project.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "scriptId": { "type": "string" },
+        "code": { "type": "string" },
+        "note": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "platformId": { "type": "string" },
+        "isAutoFixed": { "type": "boolean" }
+      },
+      "required": ["id", "scriptId", "code", "timestamp", "platformId"]
+    },
+    "Session": {
+      "title": "Chat Session",
+      "description": "An active or historical chat session for forging scripts.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "platformId": { "type": "string" },
+        "projectType": { "type": "string" },
+        "lastCode": { "type": "string" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["id", "title", "platformId", "projectType", "updatedAt"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "A single message within a session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "assistant"] },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "internalPrompt": { "type": "string" }
+      },
+      "required": ["id", "role", "content", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Root user document."
+    },
+    "/users/{userId}/projects/{projectId}": {
+      "schema": "ScriptProject",
+      "description": "Collection of saved script projects for a user."
+    },
+    "/users/{userId}/projects/{projectId}/versions/{versionId}": {
+      "schema": "ScriptVersion",
+      "description": "Version history for a specific project."
+    },
+    "/users/{userId}/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "Collection of chat sessions for a user."
+    },
+    "/users/{userId}/sessions/{sessionId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages within a specific session."
+    }
+  }
+}
